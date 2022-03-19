@@ -35,16 +35,22 @@ namespace ET
                     self.frameClickMap.X = self.ClickPoint.x;
                     self.frameClickMap.Y = self.ClickPoint.y;
                     self.frameClickMap.Z = self.ClickPoint.z;
-                    self.DomainScene().GetComponent<SessionComponent>().Session.Send(self.frameClickMap);
+                    self.ZoneScene().GetComponent<SessionComponent>().Session.Send(self.frameClickMap);
                 }
             }
 
             if (Input.GetKeyDown(KeyCode.R))
             {
-                CodeLoader.Instance.LoadHotfix();
+                CodeLoader.Instance.LoadLogic();
                 Game.EventSystem.Add(CodeLoader.Instance.GetTypes());
                 Game.EventSystem.Load();
                 Log.Debug("hot reload success!");
+            }
+            
+            if (Input.GetKeyDown(KeyCode.T))
+            {
+                C2M_TransferMap c2MTransferMap = new C2M_TransferMap();
+                self.ZoneScene().GetComponent<SessionComponent>().Session.Call(c2MTransferMap).Coroutine();
             }
         }
     }

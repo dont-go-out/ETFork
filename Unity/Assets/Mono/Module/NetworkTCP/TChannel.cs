@@ -139,6 +139,7 @@ namespace ET
 				}
 				case ServiceType.Outer:
 				{
+					stream.Seek(Packet.ActorIdLength, SeekOrigin.Begin); // 外网不需要actorId
 					ushort messageSize = (ushort) (stream.Length - stream.Position);
 
 					this.sendCache.WriteTo(0, messageSize);
@@ -298,6 +299,11 @@ namespace ET
 			{
 				return;
 			}
+
+			if (this.isSending)
+			{
+				return;
+			}
 			
 			while (true)
 			{
@@ -305,6 +311,7 @@ namespace ET
 				{
 					if (this.socket == null)
 					{
+						this.isSending = false;
 						return;
 					}
 					
@@ -342,6 +349,8 @@ namespace ET
 		private void OnSendComplete(object o)
 		{
 			HandleSend(o);
+			
+			this.isSending = false;
 			
 			this.StartSend();
 		}

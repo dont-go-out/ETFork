@@ -7,6 +7,7 @@ namespace ET
     {
         None,
         OnceTimer,
+        OnceWaitTimer,
         RepeatedTimer,
     }
     
@@ -34,7 +35,7 @@ namespace ET
         }
     }
     
-    public class TimerAction: Entity
+    public class TimerAction: Entity, IAwake, IAwake<TimerClass, long, int, object>, IDestroy
     {
         public TimerClass TimerClass;
 
@@ -73,7 +74,16 @@ namespace ET
         }
     }
 
-    public class TimerComponent: Entity
+    [ObjectSystem]
+    public class TimerComponentDestroySystem: DestroySystem<TimerComponent>
+    {
+        public override void Destroy(TimerComponent self)
+        {
+            TimerComponent.Instance = null;
+        }
+    }
+
+    public class TimerComponent: Entity, IAwake, IUpdate, ILoad, IDestroy
     {
         public static TimerComponent Instance
         {
@@ -182,6 +192,18 @@ namespace ET
             {
                 case TimerClass.OnceTimer:
                 {
+                    int type = timerAction.Type;
+                    ITimer timer = this.timerActions[type];
+                    if (timer == null)
+                    {
+                        Log.Error($"not found timer action: {type}");
+                        return;
+                    }
+                    timer.Handle(timerAction.Object);
+                    break;
+                }
+                case TimerClass.OnceWaitTimer:
+                {
                     ETTask<bool> tcs = timerAction.Object as ETTask<bool>;
                     this.Remove(timerAction.Id);
                     tcs.SetResult(true);
@@ -246,7 +268,7 @@ namespace ET
             }
 
             ETTask<bool> tcs = ETTask<bool>.Create(true);
-            TimerAction timer = this.AddChild<TimerAction, TimerClass, long, int, object>(TimerClass.OnceTimer, tillTime - timeNow, 0, tcs, true);
+            TimerAction timer = this.AddChild<TimerAction, TimerClass, long, int, object>(TimerClass.OnceWaitTimer, tillTime - timeNow, 0, tcs, true);
             this.AddTimer(tillTime, timer);
             long timerId = timer.Id;
 
@@ -286,7 +308,7 @@ namespace ET
 
             ETTask<bool> tcs = ETTask<bool>.Create(true);
             
-            TimerAction timer = this.AddChild<TimerAction, TimerClass, long, int, object>(TimerClass.OnceTimer, time, 0, tcs, true);
+            TimerAction timer = this.AddChild<TimerAction, TimerClass, long, int, object>(TimerClass.OnceWaitTimer, time, 0, tcs, true);
             this.AddTimer(tillTime, timer);
             long timerId = timer.Id;
 
@@ -309,6 +331,20 @@ namespace ET
                 cancellationToken?.Remove(CancelAction); 
             }
             return ret;
+        }
+        
+        // 用这个优点是可以热更，缺点是回调式的写法，逻辑不连贯。WaitTillAsync不能热更，优点是逻辑连贯。
+        // wait时间短并且逻辑需要连贯的建议WaitTillAsync
+        // wait时间长不需要逻辑连贯的建议用NewOnceTimer
+        public long NewOnceTimer(long tillTime, int type, object args)
+        {
+            if (tillTime < TimeHelper.ServerNow())
+            {
+                Log.Warning($"new once time too small: {tillTime}");
+            }
+            TimerAction timer = this.AddChild<TimerAction, TimerClass, long, int, object>(TimerClass.OnceTimer, tillTime, type, args, true);
+            this.AddTimer(tillTime, timer);
+            return timer.Id;
         }
 
         public long NewFrameTimer(int type, object args)

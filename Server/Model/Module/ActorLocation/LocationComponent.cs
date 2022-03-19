@@ -12,7 +12,7 @@ namespace ET
         }
     }
 
-    public class LockInfo: Entity
+    public class LockInfo: Entity, IAwake<long, CoroutineLock>
     {
         public long LockInstanceId;
 
@@ -32,7 +32,7 @@ namespace ET
         }
     }
 
-    public class LocationComponent: Entity
+    public class LocationComponent: Entity, IAwake
     {
         public readonly Dictionary<long, long> locations = new Dictionary<long, long>();
 
@@ -56,7 +56,7 @@ namespace ET
             }
         }
 
-        public async ETVoid Lock(long key, long instanceId, int time = 0)
+        public async ETTask Lock(long key, long instanceId, int time = 0)
         {
             CoroutineLock coroutineLock = await CoroutineLockComponent.Instance.Wait(CoroutineLockType.Location, key);
 

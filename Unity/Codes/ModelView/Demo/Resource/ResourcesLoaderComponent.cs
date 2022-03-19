@@ -9,13 +9,17 @@ namespace ET
         {
             async ETTask UnLoadAsync()
             {
-                ListComponent<string> list = ListComponent<string>.Create();
-                try
+                using (ListComponent<string> list = ListComponent<string>.Create())
                 {
                     list.AddRange(self.LoadedResource);
                     self.LoadedResource = null;
 
-                    // 延迟5秒卸载包，因为包卸载是引用技术，5秒之内假如重新有逻辑加载了这个包，那么可以避免一次卸载跟加载
+                    if (TimerComponent.Instance == null)
+                    {
+                        return;
+                    }
+                    
+                    // 延迟5秒卸载包，因为包卸载是引用计数，5秒之内假如重新有逻辑加载了这个包，那么可以避免一次卸载跟加载
                     await TimerComponent.Instance.WaitAsync(5000);
 
                     foreach (string abName in list)
@@ -40,17 +44,13 @@ namespace ET
                         }
                     }
                 }
-                finally
-                {
-                    list.Dispose();
-                }
             }
 
             UnLoadAsync().Coroutine();
         }
     }
-
-    public class ResourcesLoaderComponent: Entity
+    
+    public class ResourcesLoaderComponent: Entity, IAwake, IDestroy
     {
         public HashSet<string> LoadedResource = new HashSet<string>();
 
